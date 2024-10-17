@@ -1,0 +1,10 @@
+openai
+langchain
+faiss-cpu
+pypdf
+llama-index
+requests
+langchain_community
+langchain
+openai
+numexpr
