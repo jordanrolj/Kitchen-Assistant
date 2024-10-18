@@ -12,11 +12,11 @@ from langchain_community.chat_models import ChatOpenAI
 
 class RagEngine:
     def __init__(self):
-        self.loader = PyPDFLoader("cookbook_pdf.pdf")
+        self.loader = PyPDFLoader("good-and-cheap.pdf")
 
         # The text splitter is used to split the document into chunks
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=800,
+            chunk_size=1000,
             chunk_overlap=100,
             length_function=len,
             is_separator_regex=False,
@@ -36,11 +36,14 @@ class RagEngine:
             model_name="gpt-3.5-turbo"
         )
         retriever =  self.vectorstore.as_retriever(k=5)
-        template = """Answer the question based only on the following context:
-        {context}
+        template = """Based on the following context, provide the full recipe including both ingredients and instructions.
 
-        Question: {question}
-        """
+            {context}
+
+            Question: {question}
+            
+            Include the ingredients and instructions in the answer.
+            """
         prompt = PromptTemplate.from_template(template)
 
         setup_and_retrieval = RunnableParallel(
