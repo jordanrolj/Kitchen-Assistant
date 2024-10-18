@@ -11,8 +11,8 @@ def main():
 
     # Example messages to test the different tools and interactions
     test_messages = [
-        "Suggest a recipe",  # Should invoke RAG tool
-        "What is the nutritional value of the previous recipe",  # Should invoke the nutrition tool
+        "Suggest a sweet desert recipe",  # Should invoke RAG tool
+       "What is the nutritional value of the previous recipe",  # Should invoke the nutrition tool
     ]
 
     # Loop through each test message and print the agent's response

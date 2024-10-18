@@ -14,7 +14,7 @@ from langchain import hub
 
 load_dotenv()
 
-
+#Fix: Maybe store past recipe ingredients in a dictionary
 class ConversationalAgent:
     def __init__(self):
         # Set up the OpenAI API key
@@ -81,10 +81,14 @@ class ConversationalAgent:
         # Create an AgentExecutor to run the agent
         return AgentExecutor.from_agent_and_tools(agent, tools=tools, verbose=True)
 
+    #fix: Make routing to nutrion info more efficient
     def qa_chat_tool(self, message: str) -> str:
         """Tool for handling general question-answer interactions, including chat history references."""
+        # Load chat history from memory
         chat_history = self.memory.load_memory_variables({}).get("chat_history", [])
-        relevant_context = "\n".join([msg['content'] for msg in chat_history[-10:]]) if chat_history else ""
+
+        # Properly access the `content` attribute of HumanMessage/AIMessage objects
+        relevant_context = "\n".join([msg.content for msg in chat_history[-10:]]) if chat_history else ""
         
         template = """Use the following context to respond to the user's message if relevant:
             context: {relevant_context}
@@ -92,9 +96,13 @@ class ConversationalAgent:
         """
         prompt = PromptTemplate.from_template(template)
         chain = prompt | self.llm | StrOutputParser()
-        response = chain.invoke(message=message, relevant_context=relevant_context)
+
+        # Pass both message and relevant_context under a single input dictionary
+        response = chain.invoke(input={"message": message, "relevant_context": relevant_context})
         
         return response
+    
+    
 
     def rag_chat_tool(self, input_message: str) -> str:
         """Tool for finding recipes using internal documents."""
@@ -106,5 +114,14 @@ class ConversationalAgent:
 
     def handle_input(self, message: str) -> str:
         """Main method to handle user input and invoke the agent."""
-        # Invoke the agent executor with the user input and return the output
-        return self.agent_executor.invoke({"input": message})
+    
+        # Invoke the agent executor with the user input
+        response = self.agent_executor.invoke({"input": message})
+
+        # Extract the response as a string (if needed)
+        response_text = response if isinstance(response, str) else response.get("output", str(response))
+
+        # Update memory with the user's message and agent's response as strings
+        self.memory.save_context({"input": message}, {"output": response_text})
+        
+        return response_text

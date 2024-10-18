@@ -16,10 +16,10 @@ BASE_URL = "https://api.edamam.com/api/nutrition-details"
 
 def nutrition_api(recipe_data: dict) -> dict:
     """
-    Submit a recipe to Edamam Nutrition API and get nutrition analysis.
+    Submit a recipe to Edamam Nutrition API and get specific nutrition analysis (calories, protein, fats, carbohydrates, and sugar).
     
     :param recipe_data: A dictionary containing the recipe details.
-    :return: The nutrition analysis response in JSON format.
+    :return: A dictionary with calories, protein, fats, carbohydrates, and sugar values.
     """
     # Construct the full URL with app_id and app_key as query parameters
     url = f"{BASE_URL}?app_id={EDAMAM_APP_ID}&app_key={EDAMAM_APP_KEY}"
@@ -34,11 +34,23 @@ def nutrition_api(recipe_data: dict) -> dict:
     
     # Check if the request was successful
     if response.status_code == 200:
-        # Return the JSON response containing the nutrition analysis
-        return response.json()
+        # Parse the JSON response and extract the relevant nutritional values
+        data = response.json()
+
+        # Extract calories, protein, fat, carbohydrates, and sugar
+        nutrients = data.get('totalNutrients', {})
+        nutrition_info = {
+            "calories": nutrients.get("ENERC_KCAL", {}).get("quantity", 0),
+            "protein": nutrients.get("PROCNT", {}).get("quantity", 0),
+            "fat": nutrients.get("FAT", {}).get("quantity", 0),
+            "carbohydrates": nutrients.get("CHOCDF", {}).get("quantity", 0),
+            "sugar": nutrients.get("SUGAR", {}).get("quantity", 0)
+        }
+        return nutrition_info
     else:
         # If there's an error, raise an exception with the error message
         raise Exception(f"Failed to get nutrition data: {response.status_code}, {response.text}")
+
 
 def get_completion(messages, model="gpt-4.o", temperature=0, max_tokens=300, tools=None):
     response = openai.chat.completions.create(
@@ -55,7 +67,7 @@ def get_nutrition_info(recipe_text: str):
     Pass a recipe into this function to extract ingredients and get nutrition info.
     
     :param recipe_text: Recipe provided by the user in natural language.
-    :return: Nutrition analysis result from Edamam API.
+    :return: Nutrition analysis result from Edamam API, including calories, protein, fats, carbohydrates, and sugar.
     """
     # Define the function (tool) to handle extracting ingredients and nutrition analysis
     functions = [
@@ -67,13 +79,11 @@ def get_nutrition_info(recipe_text: str):
                 "properties": {
                     "recipe_data": {
                         "type": "object",
-                        "description": "A dictionary containing the recipe details, including ingredients.",
+                        "description": "A comma-separated string including ingredients.",
                         "properties": {
-                            "title": {"type": "string"},
-                            "ingr": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "A list of ingredients."
+                            "ingredients": {
+                                "type": "string",
+                                "description": "A comma-separated string of ingredients."
                             }
                         },
                         "required": ["ingr"]
@@ -94,7 +104,7 @@ def get_nutrition_info(recipe_text: str):
     ]
 
     # Get the initial response with function calling setup
-    response = get_completion(messages, functions=functions)
+    response = get_completion(messages, tools=functions)
 
     # Parse and execute the function call(s) if required
     function_map = {
@@ -110,7 +120,7 @@ def get_nutrition_info(recipe_text: str):
         # Call the corresponding function with the extracted arguments
         tool_response = function_map[function_name](**function_args)
 
-        # Return the nutrition info received from Edamam API
+        # Return the filtered nutrition info (calories, protein, fats, carbohydrates, and sugar)
         return tool_response
 
     # Return if no function call is made
